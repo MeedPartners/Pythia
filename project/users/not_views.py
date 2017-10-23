@@ -13,23 +13,10 @@ from .forms import RegisterForm, LoginForm, EmailForm, PasswordForm
 from project import app, db, mail
 from project.models import User
 
-#new
-import sys
-import sendgrid
-import os
-from sendgrid.helpers.mail import *
-
-sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
-from_email = Email("mp@MeedMartners.com")
-#to_email = Email(sys.argv[1])
-#subject = sys.argv[2]
-#content = Content("text/plain", sys.argv[3])
-#mail = Mail(from_email, subject, to_email, content)
-#response = sg.client.mail.send.post(request_body=mail.get())
-# end new
 
 # CONFIG
 users_blueprint = Blueprint('users', __name__, template_folder='templates')
+
 
 # HELPERS
 def send_async_email(msg):
@@ -38,27 +25,26 @@ def send_async_email(msg):
 
 
 def send_email(subject, recipients, html_body):
-    sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
-    to_email = Email(recipients[0])  #notice that FAB wanted a list here but I've take the first element
-    content = Content("text/html", html_body)
-    mail = Mail(from_email, subject, to_email, content) # the Sendgrid send
-    response = sg.client.mail.send.post(request_body=mail.get())
-    #msg = Message(subject, recipients=recipients)
-    #msg.html = html_body
-    #thr = Thread(target=send_async_email, args=[msg])
-    #thr.start()
+    msg = Message(subject, recipients=recipients)
+    msg.html = html_body
+    thr = Thread(target=send_async_email, args=[msg])
+    thr.start()
+
 
 def send_confirmation_email(user_email):
-
     confirm_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
     confirm_url = url_for(
         'users.confirm_email',
         token=confirm_serializer.dumps(user_email, salt='email-confirmation-salt'),
         _external=True)
+
     html = render_template(
         'email_confirmation.html',
         confirm_url=confirm_url)
+
     send_email('Confirm Your Email Address', [user_email], html)
+
 
 def send_password_reset_email(user_email):
     password_reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -94,7 +80,7 @@ def register():
             except IntegrityError:
                 db.session.rollback()
                 message = Markup(
-                    "<strong>Error!</strong> Cannot process registration.  Perhaps you have already registered.  Check for confirmation email")
+                    "<strong>Error!</strong> Unable to process registration.")
                 flash(message, 'danger')
     return render_template('register.html', form=form)
 
